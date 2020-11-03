@@ -6,15 +6,33 @@ import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.response.*
 import io.ktor.routing.*
+import io.ktor.serialization.*
 import io.ktor.websocket.*
-import org.json.JSONObject
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.plus
 import java.time.Duration
 
+/**
+ * Program entry point
+ */
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
-private val clients = mutableListOf<DefaultWebSocketSession>()
+/**
+ * Json serializer used for whole project
+ */
+val json: Json = Json {
+    isLenient = true
+    ignoreUnknownKeys = true
 
-@Suppress("unused") // Referenced in application.conf
+    classDiscriminator = "op"
+
+    serializersModule = PacketModule + UUIDModule
+}
+
+/**
+ * Module entry point.
+ */
+@Suppress("unused", "UNUSED_PARAMETER") // Referenced in application.conf
 @kotlin.jvm.JvmOverloads
 fun Application.module(testing: Boolean = false) {
     install(WebSockets) {
@@ -24,52 +42,31 @@ fun Application.module(testing: Boolean = false) {
         masking = false
     }
 
+    install(CORS) {
+        allowCredentials = true
+        allowNonSimpleContentTypes = true
+        allowSameOrigin = true
+        header(HttpHeaders.Authorization)
+        anyHost()
+        method(HttpMethod.Delete)
+        method(HttpMethod.Get)
+        method(HttpMethod.Patch)
+        method(HttpMethod.Put)
+        method(HttpMethod.Post)
+    }
+
     install(ContentNegotiation) {
+        json(json)
     }
 
     routing {
         get("/") {
-            call.respondText("HELLO WORLD!", contentType = ContentType.Text.Plain)
+            call.respondText(
+                "Kotlin + Ktor > Go! Sorry Google. I mean you also contribute to Kotlin soooo uhm",
+                contentType = ContentType.Text.Plain
+            )
         }
 
-        webSocket("/ws") {
-            val name = call.request.queryParameters["name"]
-            if (name.isNullOrBlank()) {
-                close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Missing name"))
-                return@webSocket
-            }
-
-            println("New session: $this")
-
-            clients.add(this)
-            while (true) {
-                val frame = incoming.receive()
-                if (frame is Frame.Text) {
-                    val content = frame.readText()
-                    println("Got packet $content")
-                    val json = JSONObject(content)
-                    val data = json.getJSONObject("d")
-                    when (json.getString("op")) {
-                        "close" -> {
-                            clients.remove(this)
-                            close(CloseReason(CloseReason.Codes.NORMAL, "Requested by user"))
-                        }
-                        "messageCreate" -> {
-                            val content = data.getString("content")
-                            clients.forEach {
-                                val obj = mapOf(
-                                        "op" to "messageReceive",
-                                        "d" to mapOf(
-                                                "content" to content,
-                                                "author" to name
-                                        )
-                                )
-                                it.send(Frame.Text(JSONObject(obj).toString()))
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        channels()
     }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'chat.dart';
+import 'package:iambetterthanniggel/channel_list.dart';
 
 void main() {
   runApp(MyApp());
@@ -21,7 +20,6 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatelessWidget {
-
   final TextEditingController _usernameController = TextEditingController();
 
   @override
@@ -44,11 +42,16 @@ class MyHomePage extends StatelessWidget {
       floatingActionButton: Builder(
         builder: (context) => FloatingActionButton(
           onPressed: () {
-            if(_usernameController.text.isEmpty) {
-              Scaffold.of(context).showSnackBar(SnackBar(content: Text('Name cannot be empty!')));
+            if (_usernameController.text.isEmpty) {
+              Scaffold.of(context).showSnackBar(
+                  SnackBar(content: Text('Name cannot be empty!')));
               return;
             }
-            Navigator.push(context, MaterialPageRoute(builder: (context) => Chat(_usernameController.value.text)));
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        ChannelList(_usernameController.text)));
           },
           tooltip: 'Login',
           child: Icon(Icons.login),
